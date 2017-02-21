@@ -5,69 +5,82 @@ import requests
 import json
 
 rest_host = 'localhost'
-rest_port = {{ connect_rest_port }}
-rest_url  = 'http://%s:%d' % (rest_host, rest_port)
+rest_port = {{connect_rest_port}}
+rest_url = 'http://%s:%d' % (rest_host, rest_port)
+
 
 class Error(Exception):
     pass
+
 
 class ConnectorError(Error):
     def __init__(self, connector):
         self.connector = connector
 
+
 class PluginError(Error):
     def __init__(self, plugin):
         self.plugin = plugin
+
 
 class InvalidAction(ConnectorError):
     def __init__(self, action):
         self.action = action
 
+
 class UnknownConnector(ConnectorError):
     def __init__(self, connector):
         self.connector = connector
+
 
 class UnknownPlugin(PluginError):
     def __init__(self, plugin):
         self.plugin = plugin
 
+
 class JsonError(Error):
     def __init__(self, json_data):
         self.json_data = json_data
+
 
 class MissingKey(JsonError):
     def __init__(self, key):
         self.key = key
 
+
 def get_arguments():
     parser = argparse.ArgumentParser(description='Admin script for kafka-connect')
-    parser.add_argument('--list-connectors','-l',action='store_true',help='Return a list of all connectors')
-    parser.add_argument('--list-tasks','-t',action='store_true',help='Return a list of current tasks for connector')
-    parser.add_argument('--list-plugins','-p',action='store_true',help='Return a list of installed plugins')
-    parser.add_argument('--connector','-c',dest='connector',default='all',help='Connector name (default %(default)s)')
-    parser.add_argument('--config','-v',action='store_true',help='Return the configuration of a connector')
-    parser.add_argument('--create','-C',action='store_true',help='Create a connector')
-    parser.add_argument('--json-file','-J',help='JSON file to parse')
-    parser.add_argument('--validate','-V',action='store_true',help='Validate JSON file for proper fields and format')
-    parser.add_argument('--status',action='store_true',help='Return the status of a connector')
-    parser.add_argument('--pause',action='store_true',help='Pause a connector')
-    parser.add_argument('--resume',action='store_true',help='Resume a connector')
-    parser.add_argument('--restart',action='store_true',help='Restart a connector')
+    parser.add_argument('--list-connectors', '-l', action='store_true', help='Return a list of all connectors')
+    parser.add_argument('--list-tasks', '-t', action='store_true', help='Return a list of current tasks for connector')
+    parser.add_argument('--list-plugins', '-p', action='store_true', help='Return a list of installed plugins')
+    parser.add_argument('--connector', '-c', dest='connector', default='all',
+                        help='Connector name (default %(default)s)')
+    parser.add_argument('--config', '-v', action='store_true', help='Return the configuration of a connector')
+    parser.add_argument('--create', '-C', action='store_true', help='Create a connector')
+    parser.add_argument('--json-file', '-J', help='JSON file to parse')
+    parser.add_argument('--validate', '-V', action='store_true', help='Validate JSON file for proper fields and format')
+    parser.add_argument('--status', action='store_true', help='Return the status of a connector')
+    parser.add_argument('--pause', action='store_true', help='Pause a connector')
+    parser.add_argument('--resume', action='store_true', help='Resume a connector')
+    parser.add_argument('--restart', action='store_true', help='Restart a connector')
     return parser.parse_args()
+
 
 def does_it_exist(connector):
     end_point = '%s/%s/%s' % (rest_url, "connectors", connector)
-    response  = requests.get(end_point)
+    response = requests.get(end_point)
     if response.status_code != 200:
         raise UnknownConnector(connector)
     else:
         return True
 
+
 def get_all_connectors():
     end_point = '%s/%s' % (rest_url, "connectors")
-    response  = requests.get(end_point)
+    response = requests.get(end_point)
     all_connectors = response.json()
     return all_connectors
+
 
 def get_connector_config(connector):
     try:
@@ -76,13 +89,15 @@ def get_connector_config(connector):
         print "Connector %s not found" % e.connector
     else:
         end_point = '%s/%s/%s/%s' % (rest_url, "connectors", connector, "config")
-        response  = requests.get(end_point)
+        response = requests.get(end_point)
         connector_config = response.json()
         return connector_config
+
 
 def print_connector_config(connector):
     config = get_connector_config(connector)
     print json.dumps(config, indent=4)
+
 
 def get_tasks(connector):
     try:
@@ -91,20 +106,21 @@ def get_tasks(connector):
         print "Connector %s not found" % e.connector
     else:
         end_point = '%s/%s/%s/%s' % (rest_url, "connectors", connector, "tasks")
-        response  = requests.get(end_point)
+        response = requests.get(end_point)
         connector_tasks = response.json()
         return connector_tasks
 
+
 def connector_action(connector, action):
-    if action not in [ 'pause', 'resume', 'restart' ]:
-        raise("invalid action", action)
+    if action not in ['pause', 'resume', 'restart']:
+        raise ("invalid action", action)
     try:
         does_it_exist(connector)
     except UnknownConnector as e:
         print "Connector %s not found" % e.connector
     else:
         end_point = '%s/%s/%s/%s' % (rest_url, "connectors", connector, action)
-        if action in [ 'pause', 'resume' ]:
+        if action in ['pause', 'resume']:
             response = requests.put(end_point)
             if response.status_code == 202:
                 print "%s %sd" % (connector, action)
@@ -116,6 +132,7 @@ def connector_action(connector, action):
                 print "%s restarted" % connector
             else:
                 print "Error: %i - %s" % (response.status_code, response.reason)
+
 
 def create_connector():
     def ask_splunk_source_questions():
@@ -157,7 +174,7 @@ def create_connector():
             does_it_exist(config_data['name'])
         except UnknownConnector:
             end_point = '%s/%s' % (rest_url, "connectors")
-            response  = requests.post(end_point, json=config_data)
+            response = requests.post(end_point, json=config_data)
             if response.status_code != 201:
                 print "Error: %i - %s" % (response.status_code, response.reason)
                 return False
@@ -168,7 +185,7 @@ def create_connector():
             print "Error: %s already exists" % connector
     except (IOError, TypeError):
         # Menuize
-        data = { 'config': {} }
+        data = {'config': {}}
         # Get onnector name
         print "Name for new connector"
         data['name'] = raw_input(" >> ")
@@ -201,6 +218,7 @@ def create_connector():
         else:
             print "Error: %s already exists" % connector
 
+
 def load_json_file(json_file):
     try:
         with open(json_file) as jf:
@@ -214,26 +232,29 @@ def load_json_file(json_file):
     except KeyError:
         print "Couldn't validate JSON keys"
 
+
 def validate_json_keys(json_data):
     # Required top-level keys
-    required_keys = [ 'name', 'config' ]
+    required_keys = ['name', 'config']
     for key in required_keys:
         if not json_data[key]:
             print "Error: JSON data missing required key: %s" % key
             return 1
-    # Keys required for the Splunk connector
-    required_splunk_sink_keys = [ 'splunk.remote.port',
-                                  'splunk.ssl.enabled',
-                                  'topics',
-                                  'tasks.max',
-                                  'connector.class',
-                                  'splunk.ssl.validate.certs',
-                                  'splunk.remote.host',
-                                  'splunk.auth.token' ]
-    required_file_sink_keys = [ 'connector.class',
-                                'tasks.max',
-                                'file',
-                                'topics' ]
+    # TODO - update with required keys for other connectors
+    # Keys required for the Splunk sink connector
+    required_splunk_sink_keys = ['splunk.remote.port',
+                                 'splunk.ssl.enabled',
+                                 'topics',
+                                 'tasks.max',
+                                 'connector.class',
+                                 'splunk.ssl.validate.certs',
+                                 'splunk.remote.host',
+                                 'splunk.auth.token']
+    # Keys required for the file sink connector
+    required_file_sink_keys = ['connector.class',
+                               'tasks.max',
+                               'file',
+                               'topics']
     # Validate config keys
     try:
         if json_data['config']['connector.class'] == 'io.confluent.kafka.connect.splunk.SplunkHttpSinkConnector':
@@ -253,6 +274,7 @@ def validate_json_keys(json_data):
                 raise
         return True
 
+
 def delete_connector(connector):
     try:
         does_it_exist(connector)
@@ -260,12 +282,14 @@ def delete_connector(connector):
         print "Connector %s not found" % e.connector
     else:
         end_point = '%s/%s/%s' % (rest_url, "connectors", connector)
-        response  = requests.delete(end_point)
+        response = requests.delete(end_point)
         connector_config = response.json()
         return connector_config
 
+
 def config_connector(connector):
     pass
+
 
 def get_all_plugins():
     plugins = []
@@ -278,6 +302,7 @@ def get_all_plugins():
     else:
         print "Error: %i - %s" % (response.status_code, response.reason)
         return False
+
 
 def main(args):
     if args.list_connectors:
@@ -336,6 +361,7 @@ def main(args):
                 connector_action(c, "restart")
         else:
             connector_action(args.connector, "restart")
+
 
 if __name__ == "__main__":
     try:
