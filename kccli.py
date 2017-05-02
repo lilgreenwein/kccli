@@ -283,8 +283,10 @@ def delete_connector(connector):
     else:
         end_point = '%s/%s/%s' % (rest_url, "connectors", connector)
         response = requests.delete(end_point)
-        connector_config = response.json()
-        return connector_config
+        if response.status_code == 201:
+            print "Connector %s deleted" % connector
+        else:
+            print "Error: %i - %s" % (response.status_code, response.reason)
 
 
 def config_connector(connector):
